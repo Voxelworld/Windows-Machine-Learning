@@ -1023,16 +1023,17 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
              << averageCreateSessionTime << "," 
              // [first]bind (ms)
              << averageFirstBindTime << ","
-             << (numIterations <= 1 ? 0 : averageBindTime) << "," 
-             << (numIterations <= 1 ? 0 : stdevBindTime) << ","
-             << (numIterations <= 1 ? 0 : minBindTime) << "," 
-             << (numIterations <= 1 ? 0 : maxBindTime) << ","
+             << (numIterations <= 1 ? NAN : averageBindTime) << "," // std::numeric_limits<double>::quiet_NaN()
+             << (numIterations <= 1 ? NAN : stdevBindTime) << ","
+             << (numIterations <= 1 ? NAN : minBindTime) << "," 
+             << (numIterations <= 1 ? NAN : maxBindTime) << ","
              // [first]evaluate (ms)
              << averageFirstEvalTime << "," 
-             << (numIterations <= 1 ? 0 : averageEvalTime) << "," 
-             << (numIterations <= 1 ? 0 : stdevEvalTime) << "," 
-             << (numIterations <= 1 ? 0 : minEvalTime) << "," 
-             << (numIterations <= 1 ? 0 : maxEvalTime) << ","
+             << (numIterations <= 1 ? NAN : averageEvalTime) << "," 
+             << (numIterations <= 1 ? NAN : stdevEvalTime) << "," 
+             << (numIterations <= 1 ? NAN : minEvalTime) << "," 
+             << (numIterations <= 1 ? NAN : maxEvalTime)
+             << ","
 
              // load memory (WorkingSetMemory)
              << averageLoadWorkingSetMemoryUsage << "," 
@@ -1040,16 +1041,18 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
              << averageCreateSessionWorkingSetMemoryUsage << ","
              // [first]bind  (WorkingSetMemory) 
              << averageFirstBindWorkingSetMemoryUsage << "," 
-             << (numIterations <= 1 ? 0 : averageBindWorkingSetMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : stdevBindWorkingSetMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : minBindWorkingSetMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : maxBindWorkingSetMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : averageBindWorkingSetMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : stdevBindWorkingSetMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : minBindWorkingSetMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : maxBindWorkingSetMemoryUsage)
+             << ","
              // [first]eval (WS)
              << averageFirstEvalWorkingSetMemoryUsage << "," 
-             << (numIterations <= 1 ? 0 : averageEvalWorkingSetMemoryUsage) << "," 
-             << (numIterations <= 1 ? 0 : stdevEvalWorkingSetMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : minEvalWorkingSetMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : maxEvalWorkingSetMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : averageEvalWorkingSetMemoryUsage) << "," 
+             << (numIterations <= 1 ? NAN : stdevEvalWorkingSetMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : minEvalWorkingSetMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : maxEvalWorkingSetMemoryUsage)
+             << ","
 
              // load memory (VRAM)
              << averageLoadDedicatedMemoryUsage << "," 
@@ -1057,16 +1060,18 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
              << averageCreateSessionDedicatedMemoryUsage << "," 
              // [first]bind  (VRAM)
              << averageFirstBindDedicatedMemoryUsage << "," 
-             << (numIterations <= 1 ? 0 : averageBindDedicatedMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : stdevBindDedicatedMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : minBindDedicatedMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : maxBindDedicatedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : averageBindDedicatedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : stdevBindDedicatedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : minBindDedicatedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : maxBindDedicatedMemoryUsage)
+             << ","
              // [first]evaluate (VRAM)
              << averageFirstEvalDedicatedMemoryUsage << "," 
-             << (numIterations <= 1 ? 0 : averageEvalDedicatedMemoryUsage) << "," 
-             << (numIterations <= 1 ? 0 : stdevEvalDedicatedMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : minEvalDedicatedMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : maxEvalDedicatedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : averageEvalDedicatedMemoryUsage) << "," 
+             << (numIterations <= 1 ? NAN : stdevEvalDedicatedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : minEvalDedicatedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : maxEvalDedicatedMemoryUsage)
+             << ","
 
              // load memory (SharedMemory)
              << averageLoadSharedMemoryUsage << "," 
@@ -1074,16 +1079,18 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
              << averageCreateSessionSharedMemoryUsage << ","
              // [first]bind  (SharedMemory)
              << averageFirstBindSharedMemoryUsage << ","
-             << (numIterations <= 1 ? 0 : averageBindSharedMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : stdevBindSharedMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : minBindSharedMemoryUsage) << "," 
-             << (numIterations <= 1 ? 0 : maxBindSharedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : averageBindSharedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : stdevBindSharedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : minBindSharedMemoryUsage) << "," 
+             << (numIterations <= 1 ? NAN : maxBindSharedMemoryUsage)
+             << ","
              // [first]evaluate (SharedMemory)
              << averageFirstEvalSharedMemoryUsage << "," 
-             << (numIterations <= 1 ? 0 : averageEvalSharedMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : stdevEvalSharedMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : minEvalSharedMemoryUsage) << ","
-             << (numIterations <= 1 ? 0 : maxEvalSharedMemoryUsage) << ",";
+             << (numIterations <= 1 ? NAN : averageEvalSharedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : stdevEvalSharedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : minEvalSharedMemoryUsage) << ","
+             << (numIterations <= 1 ? NAN : maxEvalSharedMemoryUsage)
+             << ",";
         for (auto metaDataPair : perfFileMetadata)
         {
             fout << metaDataPair.second << ",";
