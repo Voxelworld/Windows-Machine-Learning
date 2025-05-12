@@ -100,6 +100,74 @@ void CheckAPICall(int return_value)
     }
 }
 
+void PrintExeVersionInfo()
+{
+    TCHAR szExeFileName[MAX_PATH];
+    auto ret = GetModuleFileName(NULL, szExeFileName, MAX_PATH);
+    CheckAPICall(ret);
+    uint32_t versionInfoSize = GetFileVersionInfoSize(szExeFileName, 0);
+    wchar_t* pVersionData = new wchar_t[versionInfoSize / sizeof(wchar_t)];
+    CheckAPICall(GetFileVersionInfo(szExeFileName, 0, versionInfoSize, pVersionData));
+
+    wchar_t* pOriginalFilename;
+    uint32_t originalFilenameSize;
+    CheckAPICall(VerQueryValue(pVersionData, L"\\StringFileInfo\\040904b0\\OriginalFilename",
+                               (void**)&pOriginalFilename, &originalFilenameSize));
+
+    wchar_t* pProductVersion;
+    uint32_t productVersionSize;
+    CheckAPICall(VerQueryValue(pVersionData, L"\\StringFileInfo\\040904b0\\ProductVersion", (void**)&pProductVersion,
+                               &productVersionSize));
+
+    wchar_t* pFileVersion;
+    uint32_t fileVersionSize;
+    CheckAPICall(VerQueryValue(pVersionData, L"\\StringFileInfo\\040904b0\\FileVersion", (void**)&pFileVersion,
+                               &fileVersionSize));
+
+    std::wcout << pOriginalFilename << std::endl;
+    std::wcout << L"Version: " << pFileVersion << "." << pProductVersion << std::endl;
+
+    delete[] pVersionData;
+}
+
+void PrintModuleVersionInfo(LPCWSTR moduleFileName)
+{
+    HMODULE library = LoadLibrary(moduleFileName);
+    if (library == NULL)
+    {
+        std::wcerr << "Failed to load library " << moduleFileName << std::endl;
+        return;
+    }
+
+    wchar_t path[MAX_PATH];
+    CheckAPICall(GetModuleFileName(library, path, MAX_PATH));
+
+    DWORD handle = 0;
+    DWORD size = GetFileVersionInfoSize(path, &handle);
+    if (size == 0)
+    {
+        std::cerr << "Failed to get version info size." << std::endl;
+        return;
+    }
+
+    std::vector<wchar_t> buffer(size / sizeof(wchar_t));
+    CheckAPICall(GetFileVersionInfo(path, handle, size, buffer.data()));
+
+    VS_FIXEDFILEINFO* fileInfo;
+    UINT len;
+    CheckAPICall(VerQueryValue(buffer.data(), L"\\", reinterpret_cast<LPVOID*>(&fileInfo), &len));
+
+    DWORD versionMS = fileInfo->dwFileVersionMS;
+    DWORD versionLS = fileInfo->dwFileVersionLS;
+    DWORD major = HIWORD(versionMS);
+    DWORD minor = LOWORD(versionMS);
+    DWORD build = HIWORD(versionLS);
+    DWORD revision = LOWORD(versionLS);
+
+    std::wcout << L" * " << moduleFileName 
+        << " Version: " << major << L"." << minor << L"." << build << L"." << revision << std::endl;
+}
+
 #pragma warning(push)
 #pragma warning(disable : 4996)
 
@@ -327,32 +395,9 @@ CommandLineArgs::CommandLineArgs(const std::vector<std::wstring>& args)
         }
         else if (_wcsicmp(args[i].c_str(), L"-Version") == 0)
         {
-            TCHAR szExeFileName[MAX_PATH];
-            auto ret = GetModuleFileName(NULL, szExeFileName, MAX_PATH);
-            CheckAPICall(ret);
-            uint32_t versionInfoSize = GetFileVersionInfoSize(szExeFileName, 0);
-            wchar_t* pVersionData = new wchar_t[versionInfoSize / sizeof(wchar_t)];
-            CheckAPICall(GetFileVersionInfo(szExeFileName, 0, versionInfoSize, pVersionData));
-
-            wchar_t* pOriginalFilename;
-            uint32_t originalFilenameSize;
-            CheckAPICall(VerQueryValue(pVersionData, L"\\StringFileInfo\\040904b0\\OriginalFilename",
-                                       (void**)&pOriginalFilename, &originalFilenameSize));
-
-            wchar_t* pProductVersion;
-            uint32_t productVersionSize;
-            CheckAPICall(VerQueryValue(pVersionData, L"\\StringFileInfo\\040904b0\\ProductVersion",
-                                       (void**)&pProductVersion, &productVersionSize));
-
-            wchar_t* pFileVersion;
-            uint32_t fileVersionSize;
-            CheckAPICall(VerQueryValue(pVersionData, L"\\StringFileInfo\\040904b0\\FileVersion", (void**)&pFileVersion,
-                                       &fileVersionSize));
-
-            std::wcout << pOriginalFilename << std::endl;
-            std::wcout << L"Version: " << pFileVersion << "." << pProductVersion << std::endl;
-
-            delete[] pVersionData;
+            PrintExeVersionInfo();
+            PrintModuleVersionInfo(L"onnxruntime.dll");
+            PrintModuleVersionInfo(L"DirectML.dll");
         }
         else if ((_wcsicmp(args[i].c_str(), L"/?") == 0))
         {
