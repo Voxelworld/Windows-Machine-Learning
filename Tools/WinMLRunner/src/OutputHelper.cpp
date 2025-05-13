@@ -905,8 +905,7 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
 
         if (bNewFile)
         {
-            fout << "computer name" << ","
-                 << "model name" << ","
+            fout << "model name" << ","
                  << "device type" << ","
                  << "input binding" << ","
                  << "input type" << ","
@@ -996,20 +995,15 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
                  << "evaluate average shared memory (MB)" << ","
                  << "evaluate standard deviation shared memory (MB)" << ","
                  << "evaluate min shared memory (MB)" << ","
-                 << "evaluate max shared memory (MB)" << ",";
+                 << "evaluate max shared memory (MB)";
             for (auto metaDataPair : perfFileMetadata)
             {
-                fout << metaDataPair.first << ",";
+                fout << "," << metaDataPair.first;
             }
             fout << std::endl;
         }
 
-        size_t len;
-        char computerName[256] = "\0";
-        errno_t err = getenv_s(&len, computerName, sizeof(computerName), "COMPUTERNAME");
-
-        fout << (err == 0 ? computerName : "") << ","
-             << modelName << "," 
+        fout << modelName << "," 
              << deviceType << "," 
              << inputBinding << "," 
              << inputType << ","
@@ -1089,11 +1083,10 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
              << (numIterations <= 1 ? NAN : averageEvalSharedMemoryUsage) << ","
              << (numIterations <= 1 ? NAN : stdevEvalSharedMemoryUsage) << ","
              << (numIterations <= 1 ? NAN : minEvalSharedMemoryUsage) << ","
-             << (numIterations <= 1 ? NAN : maxEvalSharedMemoryUsage)
-             << ",";
+             << (numIterations <= 1 ? NAN : maxEvalSharedMemoryUsage);
         for (auto metaDataPair : perfFileMetadata)
         {
-            fout << metaDataPair.second << ",";
+            fout << "," << metaDataPair.second;
         }
         fout << std::endl;
         fout.close();

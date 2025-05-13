@@ -79,6 +79,7 @@ void CommandLineArgs::PrintUsage()
                  "Linear, Cubic, Fant]"
               << std::endl;
     std::cout << "  -LogCPUFallback : output warnings when operators execute on the CPU when the CPU is not the chosen device" << std::endl;
+    std::cout << "  -Metadata <key> <value> : Add additional metadata (column/value pair) to the CSV table of PerfOutput" << std::endl;
     std::cout << std::endl;
     std::cout << "Concurrency Options:" << std::endl;
     std::cout << "  -ConcurrentLoad: load models concurrently" << std::endl;
@@ -89,6 +90,7 @@ void CommandLineArgs::PrintUsage()
               << std::endl;
 }
 
+// TODO: Move to Filehelper
 void CheckAPICall(int return_value)
 {
     if (return_value == 0)
@@ -442,6 +444,16 @@ CommandLineArgs::CommandLineArgs(const std::vector<std::wstring>& args)
         else if((_wcsicmp(args[i].c_str(), L"-LogCPUFallback") == 0))
         {
             EnableLogCPUFallback();
+        }
+        else if ((_wcsicmp(args[i].c_str(), L"-Metadata") == 0))
+        {
+            CheckNextArgument(args, i, i + 1);
+            CheckNextArgument(args, i, i + 2);
+            std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+            std::string key = converter.to_bytes(args[++i]);
+            std::string value = converter.to_bytes(args[++i]);
+            std::cout << "Adding CVS metadata " << key << "=" << value << std::endl;
+            AddPerformanceFileMetadata(key, value);
         }
         else
         {
