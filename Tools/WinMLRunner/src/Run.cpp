@@ -84,8 +84,8 @@ HRESULT BindInputFeatures(const LearningModel& model, const LearningModelBinding
     }
     catch (hresult_error hr)
     {
-        std::cout << "[FAILED] Could Not Bind Input To Context" << std::endl;
-        std::wcout << hr.message().c_str() << std::endl;
+        std::cerr << "[FAILED] Could Not Bind Input To Context" << std::endl;
+        std::wcerr << hr.message().c_str() << std::endl;
         return hr.code();
     }
 
@@ -119,8 +119,8 @@ HRESULT LoadModel(LearningModel& model, const std::wstring& path, bool capturePe
     }
     catch (hresult_error hr)
     {
-        std::wcout << "Load Model: " << path << " [FAILED]" << std::endl;
-        std::wcout << hr.message().c_str() << std::endl;
+        std::wcerr << "Load Model: " << path << " [FAILED]" << std::endl;
+        std::wcerr << hr.message().c_str() << std::endl;
         throw;
     }
     return S_OK;
@@ -180,8 +180,8 @@ HRESULT CreateSession(LearningModelSession& session,
     }
     catch (hresult_error hr)
     {
-        std::cout << "Creating session [FAILED]" << std::endl;
-        std::wcout << hr.message().c_str() << std::endl;
+        std::cerr << "Creating session [FAILED]" << std::endl;
+        std::wcerr << hr.message().c_str() << std::endl;
         return hr.code();
     }
 
@@ -202,7 +202,7 @@ HRESULT BindInputs(LearningModelBinding& context, const LearningModelSession& se
     if (device.DeviceType == DeviceType::CPU && inputDataType == InputDataType::Tensor &&
         inputBindingType == InputBindingType::GPU)
     {
-        std::cout << "Cannot create D3D12 device on client if CPU device type is selected." << std::endl;
+        std::cerr << "Cannot create D3D12 device on client if CPU device type is selected." << std::endl;
         return E_INVALIDARG;
     }
     bool useInputData = false;
@@ -225,8 +225,8 @@ HRESULT BindInputs(LearningModelBinding& context, const LearningModelSession& se
         }
         catch (hresult_error hr)
         {
-            std::wcout << "\nGenerating Input Features [FAILED]" << std::endl;
-            std::wcout << hr.message().c_str() << std::endl;
+            std::wcerr << "\nGenerating Input Features [FAILED]" << std::endl;
+            std::wcerr << hr.message().c_str() << std::endl;
             return hr.code();
         }
     }
@@ -284,7 +284,7 @@ HRESULT CheckIfModelAndConfigurationsAreSupported(LearningModel& model, const st
         if (inputFeature.Kind() != LearningModelFeatureKind::Tensor &&
             inputFeature.Kind() != LearningModelFeatureKind::Image)
         {
-            std::wcout << L"Model: " + modelPath + L" has an input type that isn't supported by WinMLRunner."
+            std::wcerr << L"Model: " + modelPath + L" has an input type that isn't supported by WinMLRunner."
                        << std::endl;
             return E_NOTIMPL;
         }
@@ -298,7 +298,7 @@ HRESULT CheckIfModelAndConfigurationsAreSupported(LearningModel& model, const st
                  (tensorFeatureDescriptor.Shape().GetAt(1) != 1 && tensorFeatureDescriptor.Shape().GetAt(1) != 3)))
             {
 
-                std::cout << "Attempting to bind image but input feature " << to_string(inputFeature.Name())
+                std::cerr << "Attempting to bind image but input feature " << to_string(inputFeature.Name())
                           << " shape is invalid. Shape should be 4 dimensions (NCHW) with C = 3." << std::endl;
                 return E_INVALIDARG;
             }
@@ -321,6 +321,11 @@ HRESULT EvaluateModel(LearningModelEvaluationResult& result,
         }
 
         result = session.Evaluate(context, L"");
+        if (!result.Succeeded())
+        {
+            HRESULT hresult = result.ErrorStatus();
+            std::cerr << "Evaluate [FAILED] with ErrorStatus " << hresult << " and no exception." << std::endl;
+        }
 
         if (capturePerf)
         {
@@ -334,8 +339,8 @@ HRESULT EvaluateModel(LearningModelEvaluationResult& result,
     }
     catch (winrt::hresult_error hr)
     {
-        std::cout << "[FAILED]" << std::endl;
-        std::wcout << hr.message().c_str() << std::endl;
+        std::cerr << "[FAILED]" << std::endl;
+        std::wcerr << hr.message().c_str() << std::endl;
         return hr.code();
     }
     return S_OK;
@@ -357,7 +362,7 @@ void StartPIXCapture(OutputHelper& output)
     __except (GetExceptionCode() == VcppException(ERROR_SEVERITY_ERROR, ERROR_MOD_NOT_FOUND)
                   ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
     {
-        std::cout << "DXGI module not found." << std::endl;
+        std::cerr << "DXGI module not found." << std::endl;
     }
 }
 
@@ -376,7 +381,7 @@ void EndPIXCapture(OutputHelper& output)
                   ? EXCEPTION_EXECUTE_HANDLER
                   : EXCEPTION_CONTINUE_SEARCH)
     {
-        std::cout << "DXGI module not found." << std::endl;
+        std::cerr << "DXGI module not found." << std::endl;
     }
 }
 
@@ -395,7 +400,7 @@ void PrintIfPIXToolAttached(OutputHelper& output)
     __except (GetExceptionCode() == VcppException(ERROR_SEVERITY_ERROR, ERROR_MOD_NOT_FOUND)
                   ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
     {
-        std::cout << "DXGI module not found." << std::endl;
+        std::cerr << "DXGI module not found." << std::endl;
     }
 }
 #endif
@@ -427,7 +432,7 @@ void IterateBindAndEvaluate(const int maxBindAndEvalIterations, int& lastIterati
             }
             else if (lastIteration >= 1 && iterationTimer.Stop() >= args.IterationTimeLimit())
             {
-                std::cout << "Iteration time exceeded limit specified. Exiting.." << std::endl;
+                std::cerr << "Iteration time exceeded limit specified. Exiting.." << std::endl;
                 break;
             }
         }
@@ -494,8 +499,9 @@ void WritePerfResults(CommandLineArgs& args, OutputHelper& output, LearningModel
         std::string inputBindingTypeStringified = TypeHelper::Stringify(inputBindingType);
         std::string deviceCreationLocationStringified = TypeHelper::Stringify(device.DeviceCreationLocation);
         output.WritePerformanceDataToCSV(profiler, lastIteration, modelPath, deviceTypeStringified,
-                                            inputDataTypeStringified, inputBindingTypeStringified,
-                                            deviceCreationLocationStringified, args.GetPerformanceFileMetadata());
+                                            inputDataTypeStringified, inputBindingTypeStringified,                                         
+                                           deviceCreationLocationStringified, device.DeviceName, device.DedicatedMemory,
+                                         args.GetPerformanceFileMetadata());
     }
     if (args.IsPerIterationCapture())
     {

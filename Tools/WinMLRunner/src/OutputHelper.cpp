@@ -127,33 +127,78 @@ void OutputHelper::PrintHardwareInfo() const
     std::cout << std::endl;
 }
 
-void OutputHelper::PrintLearningModelDevice(const LearningModelDeviceWithMetadata& device)
+void OutputHelper::PopulateLearningModelDevice(LearningModelDeviceWithMetadata& device)
 {
+    device.DeviceName = L"";
+    device.DedicatedMemory = 0;
+
     if (device.DeviceType == DeviceType::CPU)
     {
-        std::cout << "\nCreated LearningModelDevice with CPU device" << std::endl;
-        return;
-    }
+        int CPUInfo[4] = { -1 };
+        char CPUBrandString[0x40];
+        __cpuid(CPUInfo, 0x80000000);
+        unsigned int nExIds = CPUInfo[0];
+        memset(CPUBrandString, 0, sizeof(CPUBrandString));
 
-    IDirect3DDevice d3dDevice = device.LearningModelDevice.Direct3D11Device();
-    com_ptr<IDirect3DDxgiInterfaceAccess> dxgi;
-    dxgi = d3dDevice.try_as<IDirect3DDxgiInterfaceAccess>();
-    if (dxgi)
-    {
-        com_ptr<IDXGIDevice> dxgiDevice;
-        dxgi->GetInterface(__uuidof(IDXGIDevice), dxgiDevice.put_void());
-        com_ptr<IDXGIAdapter> adapter;
-        dxgiDevice->GetAdapter(adapter.put());
-        DXGI_ADAPTER_DESC description;
-        if (SUCCEEDED(adapter->GetDesc(&description)))
+        // Get the information associated with each extended ID.
+        for (unsigned int i = 0x80000000; i <= nExIds; ++i)
         {
-            std::wcout << L"\nCreated LearningModelDevice with GPU: " << description.Description 
-                << " (" << std::fixed << std::setprecision(2) << float(description.DedicatedVideoMemory) / (1024*1024*1024) << " GB VRAM)" << std::endl;
+            __cpuid(CPUInfo, i);
+            // Interpret CPU brand string.
+            if (i == 0x80000002)
+                memcpy(CPUBrandString, CPUInfo, sizeof(CPUInfo));
+            else if (i == 0x80000003)
+                memcpy(CPUBrandString + 16, CPUInfo, sizeof(CPUInfo));
+            else if (i == 0x80000004)
+                memcpy(CPUBrandString + 32, CPUInfo, sizeof(CPUInfo));
         }
+        std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+        device.DeviceName = converter.from_bytes(CPUBrandString);
+
+        MEMORYSTATUSEX statex;
+        statex.dwLength = sizeof(statex);
+        GlobalMemoryStatusEx(&statex);
+        device.DedicatedMemory = (size_t)statex.ullTotalPhys;
     }
     else
     {
-        std::cout << "Failed to Print Learning Model Device Information" << std::endl;
+        IDirect3DDevice d3dDevice = device.LearningModelDevice.Direct3D11Device();
+        com_ptr<IDirect3DDxgiInterfaceAccess> dxgi;
+        dxgi = d3dDevice.try_as<IDirect3DDxgiInterfaceAccess>();
+        if (dxgi)
+        {
+            com_ptr<IDXGIDevice> dxgiDevice;
+            dxgi->GetInterface(__uuidof(IDXGIDevice), dxgiDevice.put_void());
+            com_ptr<IDXGIAdapter> adapter;
+            dxgiDevice->GetAdapter(adapter.put());
+            DXGI_ADAPTER_DESC description;
+            if (SUCCEEDED(adapter->GetDesc(&description)))
+            {
+                device.DeviceName = description.Description;
+                device.DedicatedMemory = description.DedicatedVideoMemory;
+            }
+        }
+        else
+        {
+            std::cerr << "Failed to retrieve Learning Model Device Information" << std::endl;
+        }
+    }
+}
+
+void OutputHelper::PrintLearningModelDevice(const LearningModelDeviceWithMetadata& device)
+{
+    float memoryInGB = float(device.DedicatedMemory) / (1024 * 1024 * 1024);
+    if (device.DeviceType == DeviceType::CPU)
+    {
+        std::wcout << "\nCreated LearningModelDevice with CPU: " << device.DeviceName 
+                   << " (" << std::fixed << std::setprecision(2) << memoryInGB << " GB RAM)"
+                   << std::endl;
+    }
+    else
+    {
+        std::wcout << L"\nCreated LearningModelDevice with GPU: " << device.DeviceName 
+                   << " (" << std::fixed << std::setprecision(2) << memoryInGB << " GB VRAM)"
+                   << std::endl;
     }
 }
 
@@ -736,8 +781,9 @@ template void OutputHelper::ProcessTensorResult<HALF>(const CommandLineArgs& arg
                                                        std::ofstream& fout, unsigned int k);
 
 void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PERF>& profiler, int numIterations,
-                            std::wstring model, const std::string& deviceType, const std::string& inputBinding,
+                            const std::wstring& modelPath, const std::string& deviceType, const std::string& inputBinding,
                             const std::string& inputType, const std::string& deviceCreationLocation,
+                            const std::wstring& deviceName, size_t deviceMemory,
                             const std::vector<std::pair<std::string, std::string>>& perfFileMetadata) const
 {
     double averageLoadTime = profiler[LOAD_MODEL].GetAverage(CounterType::TIMER);
@@ -901,12 +947,12 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
         fout.open(m_csvFileName, std::ios_base::app);
 
         std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        std::string modelName = converter.to_bytes(model);
-
         if (bNewFile)
         {
             fout << "model name" << ","
                  << "device type" << ","
+                 << "device name" << ","
+                 << "device memory" << ","
                  << "input binding" << ","
                  << "input type" << ","
                  << "device creation location" << ","
@@ -1003,8 +1049,10 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
             fout << std::endl;
         }
 
-        fout << modelName << "," 
-             << deviceType << "," 
+        fout << converter.to_bytes(modelPath) << "," 
+             << deviceType << ","
+             << converter.to_bytes(deviceName) << ","
+             << deviceMemory << ","
              << inputBinding << "," 
              << inputType << ","
              << deviceCreationLocation << "," 

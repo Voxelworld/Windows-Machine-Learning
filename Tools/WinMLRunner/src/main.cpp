@@ -14,7 +14,7 @@ void PopulateSessionOptions(LearningModelSessionOptions& sessionOptions)
     }
     catch (...)
     {
-        printf("Batch size override couldn't be set.\n");
+        std::cerr << "Batch size override couldn't be set." << std::endl;
         throw;
     }
 }
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
     }
     catch (const hresult_error& error)
     {
-        wprintf(error.message().c_str());
+        std::wcerr << error.message().c_str() << std::endl;
         return error.code();
     }
     LearningModelSessionOptions sessionOptions;

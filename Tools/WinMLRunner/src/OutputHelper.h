@@ -48,9 +48,11 @@ public:
     void WritePerIterationPerformance(const CommandLineArgs& args, const std::wstring model,
                                       const std::wstring imagePath);
     void WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PERF>& profiler, int numIterations,
-                                   std::wstring model, const std::string& deviceType, const std::string& inputBinding,
+                                   const std::wstring& modelPath, const std::string& deviceType, const std::string& inputBinding,
                                    const std::string& inputType, const std::string& deviceCreationLocation,
+                                   const std::wstring& deviceName, size_t deviceMemory,
                                    const std::vector<std::pair<std::string, std::string>>& perfFileMetadata) const;
+    static void PopulateLearningModelDevice(LearningModelDeviceWithMetadata& device);
     static void PrintLearningModelDevice(const LearningModelDeviceWithMetadata& device);
     static std::wstring FeatureDescriptorToString(const ILearningModelFeatureDescriptor& descriptor);
     static bool doesDescriptorContainFP16(const ILearningModelFeatureDescriptor& descriptor);

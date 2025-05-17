@@ -88,8 +88,9 @@ void PopulateLearningModelDeviceList(CommandLineArgs& args, std::vector<Learning
                         {
                         LearningModelDevice::CreateFromDirect3D11Device(inspectableDevice.as<IDirect3DDevice>()),
                         deviceType,
-                        deviceCreationLocation
+                        deviceCreationLocation, L"", 0
                         };
+                    OutputHelper::PopulateLearningModelDevice(learningModelDeviceWithMetadata);
                     OutputHelper::PrintLearningModelDevice(learningModelDeviceWithMetadata);
                     deviceList.push_back(learningModelDeviceWithMetadata);
                 }
@@ -211,11 +212,16 @@ void PopulateLearningModelDeviceList(CommandLineArgs& args, std::vector<Learning
                     com_ptr<::IUnknown> spUnkLearningModelDevice;
                     THROW_IF_FAILED(
                         factory->CreateFromD3D12CommandQueue(d3d12CommandQueue.get(), spUnkLearningModelDevice.put()));
-                    deviceList.push_back({
-                        spUnkLearningModelDevice.as<LearningModelDevice>(),
-                        deviceType,
-                        deviceCreationLocation
-                        });
+
+                    LearningModelDeviceWithMetadata learningModelDeviceWithMetadata = 
+                    { 
+                        spUnkLearningModelDevice.as<LearningModelDevice>(), 
+                        deviceType, 
+                        deviceCreationLocation, L"", 0 
+                    };
+                    OutputHelper::PopulateLearningModelDevice(learningModelDeviceWithMetadata);
+                    OutputHelper::PrintLearningModelDevice(learningModelDeviceWithMetadata);
+                    deviceList.push_back(learningModelDeviceWithMetadata);
                 }
 #endif
                 else
@@ -223,16 +229,17 @@ void PopulateLearningModelDeviceList(CommandLineArgs& args, std::vector<Learning
                     LearningModelDeviceWithMetadata learningModelDeviceWithMetadata = 
                     { 
                         LearningModelDevice( TypeHelper::GetWinmlDeviceKind(deviceType)),
-                                             deviceType, 
-                                             deviceCreationLocation 
+                        deviceType, 
+                        deviceCreationLocation, L"", 0 
                     };
+                    OutputHelper::PopulateLearningModelDevice(learningModelDeviceWithMetadata);
                     OutputHelper::PrintLearningModelDevice(learningModelDeviceWithMetadata);
                     deviceList.push_back(learningModelDeviceWithMetadata);
                 }
             }
             catch (...)
             {
-                printf("Creating LearningModelDevice failed!");
+                std::cerr << "Creating LearningModelDevice failed!" << std::endl;
                 throw;
             }
         }
