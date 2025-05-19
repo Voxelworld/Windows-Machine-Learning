@@ -24,6 +24,33 @@ using namespace ::Windows::Graphics::DirectX::Direct3D11;
 using namespace winrt::Windows::Graphics::DirectX::Direct3D11;
 using namespace DirectX::PackedVector;
 
+std::string OutputHelper::ToString(std::wstring s) 
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+    return converter.to_bytes(s);
+}
+
+std::wstring OutputHelper::ToWString(std::string s) 
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+    return converter.from_bytes(s);
+}
+
+// Returns a string like "[1, 10, 20, 30, 1]"
+std::string OutputHelper::ToString(const std::vector<int64_t>& shape)
+{
+    std::ostringstream ss;
+    ss << "[";
+    for (size_t i = 0; i < shape.size(); ++i)
+    {
+        ss << shape[i];
+        if (i + 1 < shape.size())
+            ss << ", ";
+    }
+    ss << "]";
+    return ss.str();
+}
+
 void OutputHelper::PrintLoadingInfo(const std::wstring& modelPath) const
 {
     wprintf(L"Loading model (path = %s)...\n", modelPath.c_str());
@@ -581,32 +608,9 @@ std::wstring OutputHelper::GetDefaultCSVFileNamePerIteration() { return m_csvFil
 std::wstring OutputHelper::GetCsvFileNamePerIterationResult() { return m_csvFileNamePerIterationResult; }
 
 void OutputHelper::SetDefaultCSVIterationResult(uint32_t iterationNum, const CommandLineArgs& args,
-                                                std::wstring& featureName)
+                                                const std::wstring& deviceName, const std::wstring& featureName)
 {
-    if (args.UseCPU() && args.UseGPU())
-    {
-        if (!m_flagGpuDevice)
-        {
-            m_fileNameResultDevice = m_folderNamePerIteration + L"\\" + featureName + L"CpuIteration";
-            if (iterationNum == args.NumIterations() - 1 || args.SaveTensorMode() == L"First")
-            {
-                m_flagGpuDevice = true;
-            }
-        }
-        else
-        {
-            m_fileNameResultDevice = m_folderNamePerIteration + L"\\" + featureName + L"GpuIteration";
-        }
-    }
-    else if (args.UseGPU())
-    {
-        m_fileNameResultDevice = m_folderNamePerIteration + L"\\" + featureName + L"GpuIteration";
-    }
-    else
-    {
-        m_fileNameResultDevice = m_folderNamePerIteration + L"\\" + featureName + L"CpuIteration";
-    }
-    m_csvFileNamePerIterationResult = m_fileNameResultDevice + std::to_wstring(iterationNum + 1) + L".csv";
+    m_csvFileNamePerIterationResult = m_folderNamePerIteration + L"\\" + deviceName + featureName + L"Iteration" + std::to_wstring(iterationNum + 1) + L".csv";
 }
 
 void OutputHelper::SetCSVFileName(const std::wstring& fileName) { m_csvFileName = fileName; }

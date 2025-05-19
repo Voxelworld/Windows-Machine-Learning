@@ -18,8 +18,9 @@ namespace BindingUtilities
                                           const CommandLineArgs& args, uint32_t iterationNum,
                                           ColorManagementMode colorManagementMode);
 
-    void PrintOrSaveEvaluationResults(const LearningModel& model, const CommandLineArgs& args,
-                                      const winrt::Windows::Foundation::Collections::IMapView<hstring, winrt::Windows::Foundation::IInspectable>& results,
-                                      OutputHelper& output, int iterationNum);
+    void PrintOrSaveEvaluationResultsToCsv(
+        const LearningModel& model, const LearningModelDeviceWithMetadata& device, const CommandLineArgs& args,
+        const winrt::Windows::Foundation::Collections::IMapView<hstring, winrt::Windows::Foundation::IInspectable>& results,
+        OutputHelper& output, int iterationNum);
 
 }

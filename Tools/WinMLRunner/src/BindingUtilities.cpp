@@ -918,7 +918,7 @@ namespace BindingUtilities
         std::cout << " " << maxKey << " " << maxVal << std::endl;
     }
 
-    void PrintOrSaveEvaluationResults(const LearningModel& model, const CommandLineArgs& args,
+void PrintOrSaveEvaluationResultsToCsv(const LearningModel& model, const LearningModelDeviceWithMetadata& device, const CommandLineArgs& args,
                                       const IMapView<hstring, winrt::Windows::Foundation::IInspectable>& results,
                                       OutputHelper& output, int iterationNum)
     {
@@ -933,13 +933,12 @@ namespace BindingUtilities
                 }
                 if (args.IsSaveTensor())
                 {
-                    output.SetDefaultCSVIterationResult(iterationNum, args, name);
+                    output.SetDefaultCSVIterationResult(iterationNum, args, OutputHelper::ToWString(TypeHelper::Stringify(device.DeviceType)), name);
                 }
                 void* tensor;
                 uint32_t uCapacity;
                 com_ptr<ITensorNative> itn = results.Lookup(desc.Name()).as<ITensorNative>();
                 HRESULT(itn->GetBuffer(reinterpret_cast<BYTE**>(&tensor), &uCapacity));
-                int size = 0;
                 unsigned int topK = args.TopK();
                 std::vector<std::pair<float, int>> maxKValues;
                 std::ofstream fout;

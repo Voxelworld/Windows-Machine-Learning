@@ -43,7 +43,7 @@ public:
     void SetDefaultCSVFileNamePerIteration();
     std::wstring GetDefaultCSVFileNamePerIteration();
     std::wstring GetCsvFileNamePerIterationResult();
-    void SetDefaultCSVIterationResult(uint32_t iterationNum, const CommandLineArgs& args, std::wstring& featureName);
+    void SetDefaultCSVIterationResult(uint32_t iterationNum, const CommandLineArgs& args, const std::wstring& deviceName, const std::wstring& featureName);
     void SetCSVFileName(const std::wstring& fileName);
     void WritePerIterationPerformance(const CommandLineArgs& args, const std::wstring model,
                                       const std::wstring imagePath);
@@ -60,6 +60,9 @@ public:
     template <typename T>
     static void ProcessTensorResult(const CommandLineArgs& args, const void* buffer, const uint32_t uCapacity,
                                     std::vector<std::pair<float, int>>& maxValues, std::ofstream& fout, unsigned int k);
+    static std::string ToString(std::wstring s);
+    static std::wstring ToWString(std::string s);
+    static std::string ToString(const std::vector<int64_t>& shape);
     // PIX markers only work on amd64
 #if defined(_AMD64_)
     com_ptr<IDXGraphicsAnalysis>& GetGraphicsAnalysis() { return m_graphicsAnalysis; }
@@ -75,7 +78,6 @@ private:
     std::wstring m_fileNameResultDevice;
 
     bool m_silent = false;
-    bool m_flagGpuDevice = false;
 
     std::vector<double> m_EvalTime;
     std::vector<double> m_CPUWorkingDiff;
