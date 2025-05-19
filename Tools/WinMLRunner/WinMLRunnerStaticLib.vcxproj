@@ -45,6 +45,7 @@
     <ClInclude Include="src/Run.h" />
     <ClInclude Include="src/TimerHelper.h" />
     <ClInclude Include="src/TypeHelper.h" />
+    <ClInclude Include="src\json.hpp" />
     <ClInclude Include="src\LearningModelDeviceHelper.h" />
     <ClInclude Include="src\EventTraceHelper.h" />
   </ItemGroup>
