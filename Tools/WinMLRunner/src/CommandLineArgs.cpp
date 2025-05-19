@@ -56,7 +56,8 @@ void CommandLineArgs::PrintUsage()
                  "will output all measurements"
               << std::endl;
     std::cout << "  -Iterations : # times perf measurements will be run/averaged. (maximum: 1024 times)" << std::endl;
-    std::cout << "  -Input <path to input file>: binds image or CSV to model" << std::endl;
+    std::cout << "  -Input <path to input file>: binds image or JSON or CSV file to model" << std::endl;
+    std::cout << "      .json must contain a dict ['inputs'][<name>] with 'shape' and (flattened) 'data' array." << std::endl;
     std::cout << "  -InputImageFolder <path to directory of images> : specify folder of images to bind to model"
               << std::endl;
     std::cout << "  -TopK <number> : print top <number> values in the result. Default to 1" << std::endl;
@@ -481,6 +482,10 @@ CommandLineArgs::CommandLineArgs(const std::vector<std::wstring>& args)
         else if (m_inputData.find(L".csv") != std::string::npos)
         {
             m_csvData = m_inputData;
+        }
+        else if (m_inputData.find(L".json") != std::string::npos)
+        {
+            m_jsonData = m_inputData;
         }
         else
         {

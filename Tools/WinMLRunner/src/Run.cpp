@@ -459,7 +459,14 @@ void IterateBindAndEvaluate(const int maxBindAndEvalIterations, int& lastIterati
             // Only print eval results on the first iteration, iff it's not garbage data
             if (!args.IsGarbageInput() || args.IsSaveTensor())
             {
-                BindingUtilities::PrintOrSaveEvaluationResults(session.Model(), args, result.Outputs(), output, lastIteration);
+                if (args.IsJsonInput())
+                {
+                    BindingUtilities::SaveEvaluationResultsToJson(session.Model(), device, args, result.Outputs(), output, lastIteration);
+                }
+                else
+                {
+                    BindingUtilities::PrintOrSaveEvaluationResultsToCsv(session.Model(), device, args, result.Outputs(), output, lastIteration);
+                }
             }
 
             if (args.TerseOutput() && args.NumIterations() > 1)

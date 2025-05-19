@@ -11,6 +11,7 @@
 #include "CommandLineArgs.h"
 #include "OutputHelper.h"
 #include "BindingUtilities.h"
+#include "json.hpp" // nlohmann::json
 using namespace winrt::Windows::Media;
 using namespace winrt::Windows::Storage;
 using namespace winrt::Windows::Storage::Streams;
@@ -389,7 +390,7 @@ namespace BindingUtilities
         std::string line;
         float_t* pData = (float_t*)inputBufferDesc.elements;
         uint32_t expectedPos = (inputBufferDesc.totalSizeInBytes * inputBufferDesc.numChannelsPerElement) /
-                               inputBufferDesc.elementStrideInBytes;
+                                inputBufferDesc.elementStrideInBytes;
         while (std::getline(fileStream, line, ','))
         {
             if (pos > expectedPos)
@@ -406,6 +407,41 @@ namespace BindingUtilities
         if (pos != expectedPos)
         {
             throw hresult_invalid_argument(L"CSV input size/shape is different from what model expects!");
+        }
+    }
+
+    void ReadJSONIntoBuffer(const std::wstring& jsonFilePath, std::vector<int64_t>& shape, std::vector<float>& data)
+    {
+        std::ifstream fileStream(jsonFilePath);
+        if (!fileStream.is_open())
+        {
+            throw std::runtime_error("Could not open JSON file.");
+        }
+
+        nlohmann::json j;
+        fileStream >> j;
+
+        if (!j.contains("inputs"))
+            throw std::runtime_error("Missing 'inputs' dict.");
+        if (j["inputs"].size() == 0)
+            throw std::runtime_error("No input tensors defined in 'inputs'.");
+
+        // Just use first key in "inputs", ignore it.name()
+        auto it = j["inputs"].begin();
+        const auto& input = it.value();
+
+        if (!input.contains("shape") || !input["shape"].is_array() || 
+            !input.contains("data") || !input["data"].is_array() )
+            throw std::runtime_error("Missing 'shape' or 'data' array.");
+        shape = input["shape"].get<std::vector<int64_t>>();
+        data = input["data"].get<std::vector<float>>();
+
+        if (data.size() != std::accumulate(shape.begin(), shape.end(), 1LL, std::multiplies<int64_t>()))
+        {
+            std::ostringstream ss;
+            ss << "Tensor 'data' of size " << data.size() << " does not match 'shape' dimensions of "
+               << OutputHelper::ToString(shape) << ". Note: Tensor array should be flattened.";
+            throw std::runtime_error(ss.str());
         }
     }
 
@@ -542,6 +578,38 @@ namespace BindingUtilities
                     break;
                 default:
                     throw hresult_not_implemented(L"Creating Tensors for Input Images with unhandled channel format!");
+            }
+        }
+        else if (args.IsJsonInput())
+        {
+            std::vector<int64_t> shape;
+            std::vector<float> data;
+            try
+            {
+                ReadJSONIntoBuffer(args.JsonPath(), shape, data);
+            }
+            catch (const std::exception& ex)
+            {
+                throw hresult_invalid_argument(L"Error reading JSON file '" + args.JsonPath() + L"': " + OutputHelper::ToWString(ex.what()));
+            }
+
+            std::wcout << L"Binding data from '" << args.JsonPath() << L"' (" << data.size() << " elements) ";
+            std::cout << "to input tensor with shape " << OutputHelper::ToString(tensorShape) << std::endl;
+
+            // TODO: verify each dimension (channel first vs. channel last)?
+            if (shape.size() != tensorShape.size() ||
+                std::accumulate(shape.begin(), shape.end(), (int64_t)1, std::multiplies<int64_t>()) != 
+                std::accumulate(tensorShape.begin(), tensorShape.end(), (int64_t)1, std::multiplies<int64_t>()))
+            {
+                std::stringstream ss;
+                ss << "Shape mismatch: actual " << OutputHelper::ToString(shape) << "!= expected " << OutputHelper::ToString(tensorShape) << std::endl;
+                throw hresult_invalid_argument(OutputHelper::ToWString(ss.str()));
+            }
+
+            const WriteType* end = reinterpret_cast<WriteType*>(reinterpret_cast<BYTE*>(actualData) + actualSizeInBytes);
+            for (WriteType* begin = actualData; begin <= end; ++begin)
+            {
+                *begin = static_cast<WriteType>(data[begin - actualData]);
             }
         }
         // Garbage Data
@@ -763,8 +831,14 @@ namespace BindingUtilities
                 inputBufferDesc.totalSizeInBytes *= static_cast<uint32_t>(shape[i]);
 
             inputBufferDesc.elements = new uint8_t[inputBufferDesc.totalSizeInBytes];
-
-            ReadCSVIntoBuffer(args.CsvPath(), inputBufferDesc);
+            try
+            {
+                ReadCSVIntoBuffer(args.CsvPath(), inputBufferDesc);
+            }
+            catch (const std::exception& ex)
+            {
+                throw hresult_invalid_argument(L"Error reading CSV file '" + args.CsvPath() + L"': " + OutputHelper::ToWString(ex.what()));
+            }
         }
         else if (args.IsImageInput())
         {
@@ -918,7 +992,110 @@ namespace BindingUtilities
         std::cout << " " << maxKey << " " << maxVal << std::endl;
     }
 
-void PrintOrSaveEvaluationResultsToCsv(const LearningModel& model, const LearningModelDeviceWithMetadata& device, const CommandLineArgs& args,
+    void SaveEvaluationResultsToJson(
+        const LearningModel& model, const LearningModelDeviceWithMetadata& device, 
+        const CommandLineArgs& args,
+        const IMapView<hstring, winrt::Windows::Foundation::IInspectable>& results,
+        OutputHelper& output, int iterationNum)
+    {
+        nlohmann::json output_json = {
+            { "model", 
+                { 
+                    { "path", winrt::to_string(args.ModelPath()) }
+                }
+            },
+            { "device",
+                {
+                    { "type", TypeHelper::Stringify(device.DeviceType) },
+                    { "name", winrt::to_string(device.DeviceName) },
+                    { "memory", device.DedicatedMemory }
+                } },
+            { "outputs", {} }
+        };
+
+        for (auto&& outputFeature : model.OutputFeatures())
+        {
+            if (outputFeature.Kind() == LearningModelFeatureKind::Tensor)
+            {
+                if (args.IsSaveTensor() && args.SaveTensorMode() == L"First" && iterationNum > 0)
+                {
+                    return;
+                }
+
+                TensorFeatureDescriptor tensorDescriptor = outputFeature.as<TensorFeatureDescriptor>();
+                if (tensorDescriptor.TensorKind() == TensorKind::Float ||
+                    tensorDescriptor.TensorKind() == TensorKind::Float16)
+                {
+                    // Get tensor shape
+                    std::vector<int64_t> shape;
+                    auto tensorShape = tensorDescriptor.Shape();
+                    for (uint32_t i = 0; i < tensorShape.Size(); ++i)
+                        shape.push_back(tensorShape.GetAt(i));
+
+                    // Get tensor buffer
+                    com_ptr<ITensorNative> itn = results.Lookup(outputFeature.Name()).as<ITensorNative>();
+                    void* tensorBuffer = nullptr;
+                    uint32_t uCapacity = 0;
+                    HRESULT(itn->GetBuffer(reinterpret_cast<BYTE**>(&tensorBuffer), &uCapacity));
+
+                    std::vector<float> flat_data;
+                    if (tensorDescriptor.TensorKind() == TensorKind::Float)
+                    {
+                        const float* data = reinterpret_cast<float*>(tensorBuffer);
+                        const size_t num_elements = uCapacity / sizeof(float);
+                        flat_data = std::vector<float>(data, data + num_elements);
+                    }
+                    else if (tensorDescriptor.TensorKind() == TensorKind::Float16)
+                    {
+                        const HALF* data = reinterpret_cast<HALF*>(tensorBuffer);
+                        const size_t num_elements = uCapacity / sizeof(HALF);
+                        flat_data.reserve(num_elements);
+                        for (size_t i = 0; i < num_elements; ++i)
+                        {
+                            flat_data.push_back(XMConvertHalfToFloat(data[i]));
+                        }
+                    }
+
+                    auto minmax = std::minmax_element(flat_data.begin(), flat_data.end());
+                    if (*minmax.first == *minmax.second)
+                    {
+
+                        std::cout << "[WARNING] All tensor elements values are " << *minmax.first
+                                  << " (name=" << winrt::to_string(tensorDescriptor.Name())
+                                  << ", shape=" << OutputHelper::ToString(shape) << ")" << std::endl;
+                    }
+                    
+                    output_json["outputs"][winrt::to_string(tensorDescriptor.Name())] = 
+                    {
+                        { "description", winrt::to_string(tensorDescriptor.Description()) },
+                        { "type", winrt::to_string(TypeHelper::Stringify(tensorDescriptor.TensorKind())) },
+                        { "shape", shape },
+                        { "data", flat_data },
+                        { "min", *minmax.first },
+                        { "max", *minmax.second }
+                    };
+                }
+                else
+                {
+                    std::wcerr << "BindingUtilities: tensor dtype '" << TypeHelper::Stringify(tensorDescriptor.TensorKind()) << "' not implemented." << std::endl;
+                }
+            }
+            else
+            {
+                std::wcerr << "BindingUtilities: output kind not implemented." << std::endl;
+            }
+        }
+
+        // Write JSON file
+        output.SetDefaultCSVIterationResult(iterationNum, args, OutputHelper::ToWString(TypeHelper::Stringify(device.DeviceType)), L"");
+        std::wstring jsonFilePath = output.GetCsvFileNamePerIterationResult();
+        jsonFilePath = jsonFilePath.substr(0, jsonFilePath.length() - 4) + L".json";
+
+        std::ofstream fout(jsonFilePath);
+        fout << std::setw(1) << output_json << std::endl;
+    }
+
+    void PrintOrSaveEvaluationResultsToCsv(const LearningModel& model, const LearningModelDeviceWithMetadata& device, const CommandLineArgs& args,
                                       const IMapView<hstring, winrt::Windows::Foundation::IInspectable>& results,
                                       OutputHelper& output, int iterationNum)
     {

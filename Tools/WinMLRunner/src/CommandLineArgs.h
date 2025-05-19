@@ -52,6 +52,7 @@ public:
         return m_providedInputFeatureValues;
     }
     const std::wstring& CsvPath() const { return m_csvData; }
+    const std::wstring& JsonPath() const { return m_jsonData; }
     const std::wstring& OutputPath() const { return m_perfOutputPath; }
     const std::wstring& FolderPath() const { return m_modelFolderPath; }
     const std::wstring& ModelPath() const { return m_modelPath; }
@@ -98,8 +99,9 @@ public:
     bool IsGarbageInput() const
     {
         // When there is no image or csv input provided, then garbage input binding is used.
-        return m_imagePaths.empty() && m_csvData.empty() && m_providedInputFeatureValues.empty();
+        return m_imagePaths.empty() && m_jsonData.empty() && m_csvData.empty() && m_providedInputFeatureValues.empty();
     }
+    bool IsJsonInput() const { return m_imagePaths.empty() && !m_jsonData.empty(); }
     bool IsCSVInput() const { return m_imagePaths.empty() && !m_csvData.empty(); }
     bool IsImageInput() const { return !m_imagePaths.empty() && m_csvData.empty(); }
     bool InputFeatureValuesProvided() const { return !m_providedInputFeatureValues.empty(); }
@@ -198,6 +200,7 @@ private:
     std::vector<ILearningModelFeatureValue> m_providedInputFeatureValues;
     std::wstring m_inputImageFolderPath;
     std::wstring m_csvData;
+    std::wstring m_jsonData;
     std::wstring m_inputData;
 #ifdef DXCORE_SUPPORTED_BUILD
     std::wstring m_adapterName;
