@@ -585,7 +585,7 @@ void OutputHelper::SaveEvalPerformance(Profiler<WINML_MODEL_TEST_PERF>& profiler
     m_GPUDedicatedDiff[iterNum] = profiler[eval].GetGpuDedicatedDiff();
 }
 
-void OutputHelper::SaveResult(uint32_t iterationNum, std::string result, int hashcode)
+void OutputHelper::SaveResult(uint32_t iterationNum, std::string result, size_t hashcode)
 {
     m_outputResult[iterationNum] = result;
     m_outputTensorHash[iterationNum] = hashcode;
@@ -610,7 +610,8 @@ std::wstring OutputHelper::GetCsvFileNamePerIterationResult() { return m_csvFile
 void OutputHelper::SetDefaultCSVIterationResult(uint32_t iterationNum, const CommandLineArgs& args,
                                                 const std::wstring& deviceName, const std::wstring& featureName)
 {
-    m_csvFileNamePerIterationResult = m_folderNamePerIteration + L"\\" + deviceName + featureName + L"Iteration" + std::to_wstring(iterationNum + 1) + L".csv";
+    m_fileNameResultDevice = m_folderNamePerIteration + L"\\" + featureName + deviceName + L"Iteration";
+    m_csvFileNamePerIterationResult = m_fileNameResultDevice + std::to_wstring(iterationNum + 1) + L".csv";
 }
 
 void OutputHelper::SetCSVFileName(const std::wstring& fileName) { m_csvFileName = fileName; }
@@ -637,8 +638,11 @@ void OutputHelper::WritePerIterationPerformance(const CommandLineArgs& args, con
         std::string modelName = converter.to_bytes(model);
         std::string fileNameResultDevice = converter.to_bytes(m_fileNameResultDevice);
         std::string inputName = args.IsCSVInput() ? converter.to_bytes(args.CsvPath())
-                                                    : args.IsImageInput() ? converter.to_bytes(imagePath) : "";
+                                 : args.IsJsonInput()   ? converter.to_bytes(args.JsonPath())
+                                   : args.IsImageInput() ? converter.to_bytes(imagePath)
+                                     : "";
 
+        // capture tensor properties even if tensor is not saved
         if (bNewFile)
         {
             if (args.IsPerIterationCapture())
@@ -667,18 +671,14 @@ void OutputHelper::WritePerIterationPerformance(const CommandLineArgs& args, con
                         << ","
                         << "Evaluate (ms)"
                         << ",";
-
-                if (args.IsSaveTensor())
-                {
-                    fout << "Result"
-                            << ","
-                            << "OutputTensorHash"
-                            << ","
-                            << "FileName";
-                }
+                
+                fout << "Result"
+                        << ","
+                        << "OutputTensorHash"
+                        << ","
+                        << "FileName";
             }
-
-            else if (args.IsSaveTensor())
+            else
             {
                 fout << "Iteration Number"
                         << ","
@@ -696,30 +696,20 @@ void OutputHelper::WritePerIterationPerformance(const CommandLineArgs& args, con
             for (uint32_t i = 0; i < args.NumIterations(); i++)
             {
                 fout << modelName << "," << inputName << "," << args.NumIterations() << "," << i + 1 << ","
-                        << m_CPUWorkingDiff[i] << "," << m_CPUWorkingStart[i] << "," << m_GPUSharedDiff[i] << ","
-                        << m_GPUSharedStart[i] << "," << m_GPUDedicatedDiff[i] << "," << m_clockLoadTimes[i] << ","
-                        << m_clockBindTimes[i] << "," << m_clockEvalTimes[i] << ",";
-
-                if (args.IsSaveTensor() &&
-                    (args.SaveTensorMode() == L"All" || (args.SaveTensorMode() == L"First" && i == 0)))
-                {
-                    fout << m_outputResult[i] << "," << m_outputTensorHash[i] << ","
-                            << fileNameResultDevice + std::to_string(i + 1) + ".csv"
-                            << ",";
-                }
+                     << m_CPUWorkingDiff[i] << "," << m_CPUWorkingStart[i] << "," << m_GPUSharedDiff[i] << ","
+                     << m_GPUSharedStart[i] << "," << m_GPUDedicatedDiff[i] << "," << m_clockLoadTimes[i] << ","
+                     << m_clockBindTimes[i] << "," << m_clockEvalTimes[i] << ",";
+                fout << m_outputResult[i] << "," << m_outputTensorHash[i] << ","
+                     << fileNameResultDevice + std::to_string(i + 1) + ".csv";
                 fout << std::endl;
             }
         }
-        else if (args.IsSaveTensor())
+        else
         {
             for (uint32_t i = 0; i < args.NumIterations(); i++)
             {
                 fout << i + 1 << "," << m_outputResult[i] << "," << m_outputTensorHash[i] << ","
-                        << fileNameResultDevice + std::to_string(i + 1) + ".csv" << std::endl;
-                if (args.SaveTensorMode() == L"First" && i == 0)
-                {
-                    break;
-                }
+                     << fileNameResultDevice + std::to_string(i + 1) + ".csv" << std::endl; // vs. .json
             }
         }
         fout.close();

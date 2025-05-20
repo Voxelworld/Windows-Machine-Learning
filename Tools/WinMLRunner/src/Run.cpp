@@ -324,7 +324,8 @@ HRESULT EvaluateModel(LearningModelEvaluationResult& result,
         if (!result.Succeeded())
         {
             HRESULT hresult = result.ErrorStatus();
-            std::cerr << "Evaluate [FAILED] with ErrorStatus " << hresult << " and no exception." << std::endl;
+            std::cerr << "Evaluate [FAILED] with ErrorStatus " << hresult 
+                      << "Execution logic continues." << std::endl;
         }
 
         if (capturePerf)
@@ -512,7 +513,8 @@ void WritePerfResults(CommandLineArgs& args, OutputHelper& output, LearningModel
     }
     if (args.IsPerIterationCapture())
     {
-        output.WritePerIterationPerformance(args, session.Model().Name().c_str(), imagePath);
+        //output.WritePerIterationPerformance(args, session.Model().Name().c_str(), imagePath); // TODO: model.name / model.version
+        output.WritePerIterationPerformance(args, modelPath, imagePath);
     }
 }
 

@@ -10,14 +10,14 @@ class OutputHelper
 public:
     OutputHelper(int numIterations)
     {
-        m_clockLoadTimes.resize(numIterations, 0.0);
-        m_clockBindTimes.resize(numIterations, 0.0);
-        m_clockEvalTimes.resize(numIterations, 0.0);
-        m_CPUWorkingDiff.resize(numIterations, 0.0);
-        m_CPUWorkingStart.resize(numIterations, 0.0);
-        m_GPUSharedDiff.resize(numIterations, 0.0);
-        m_GPUDedicatedDiff.resize(numIterations, 0.0);
-        m_GPUSharedStart.resize(numIterations, 0.0);
+        m_clockLoadTimes.resize(numIterations, NAN); //0.0);
+        m_clockBindTimes.resize(numIterations, NAN); // 0.0);
+        m_clockEvalTimes.resize(numIterations, NAN); // 0.0);
+        m_CPUWorkingDiff.resize(numIterations, NAN); // 0.0);
+        m_CPUWorkingStart.resize(numIterations, NAN); // 0.0);
+        m_GPUSharedDiff.resize(numIterations, NAN);   // 0.0);
+        m_GPUDedicatedDiff.resize(numIterations, NAN); // 0.0);
+        m_GPUSharedStart.resize(numIterations, NAN);   // 0.0);
         m_outputResult.resize(numIterations, "");
         m_outputTensorHash.resize(numIterations, 0);
     }
@@ -38,7 +38,7 @@ public:
     void SaveLoadTimes(Profiler<WINML_MODEL_TEST_PERF>& profiler, uint32_t iterNum);
     void SaveBindTimes(Profiler<WINML_MODEL_TEST_PERF>& profiler, uint32_t iterNum);
     void SaveEvalPerformance(Profiler<WINML_MODEL_TEST_PERF>& profiler, uint32_t iterNum);
-    void SaveResult(uint32_t iterationNum, std::string result, int hashcode);
+    void SaveResult(uint32_t iterationNum, std::string result, size_t hashcode);
     void SetDefaultPerIterationFolder(const std::wstring& folderName);
     void SetDefaultCSVFileNamePerIteration();
     std::wstring GetDefaultCSVFileNamePerIteration();
@@ -86,7 +86,7 @@ private:
     std::vector<double> m_GPUSharedStart;
     std::vector<double> m_GPUDedicatedDiff;
     std::vector<std::string> m_outputResult;
-    std::vector<int> m_outputTensorHash;
+    std::vector<size_t> m_outputTensorHash;
 
 #if defined(_AMD64_)
     // PIX markers only work on amd64

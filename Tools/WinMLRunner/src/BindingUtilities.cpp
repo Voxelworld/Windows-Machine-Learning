@@ -1017,11 +1017,6 @@ namespace BindingUtilities
         {
             if (outputFeature.Kind() == LearningModelFeatureKind::Tensor)
             {
-                if (args.IsSaveTensor() && args.SaveTensorMode() == L"First" && iterationNum > 0)
-                {
-                    return;
-                }
-
                 TensorFeatureDescriptor tensorDescriptor = outputFeature.as<TensorFeatureDescriptor>();
                 if (tensorDescriptor.TensorKind() == TensorKind::Float ||
                     tensorDescriptor.TensorKind() == TensorKind::Float16)
@@ -1038,6 +1033,7 @@ namespace BindingUtilities
                     uint32_t uCapacity = 0;
                     HRESULT(itn->GetBuffer(reinterpret_cast<BYTE**>(&tensorBuffer), &uCapacity));
 
+                    // Convert
                     std::vector<float> flat_data;
                     if (tensorDescriptor.TensorKind() == TensorKind::Float)
                     {
@@ -1057,23 +1053,33 @@ namespace BindingUtilities
                     }
 
                     auto minmax = std::minmax_element(flat_data.begin(), flat_data.end());
-                    if (*minmax.first == *minmax.second)
+                    bool isConstTensor = *minmax.first == *minmax.second;
+                    if (isConstTensor)
                     {
-
-                        std::cout << "[WARNING] All tensor elements values are " << *minmax.first
+                        std::cout << "[WARNING] All tensor element values are " << *minmax.first
                                   << " (name=" << winrt::to_string(tensorDescriptor.Name())
                                   << ", shape=" << OutputHelper::ToString(shape) << ")" << std::endl;
                     }
-                    
-                    output_json["outputs"][winrt::to_string(tensorDescriptor.Name())] = 
+                    auto hash = hash_data(tensorBuffer, uCapacity);
+                    std::ostringstream ss;
+                    ss << " mix=" << (*minmax.first) << " max=" << (*minmax.second)
+                       << (isConstTensor ? " (Const-Tensor)" : "");
+                              
+                    // TODO: saveFullTensor handling?
+                    bool saveFullTensor = args.SaveTensorMode() == L"All" || iterationNum == 0;
+                    output_json["outputs"][winrt::to_string(tensorDescriptor.Name())] =
                     {
                         { "description", winrt::to_string(tensorDescriptor.Description()) },
                         { "type", winrt::to_string(TypeHelper::Stringify(tensorDescriptor.TensorKind())) },
                         { "shape", shape },
-                        { "data", flat_data },
+                        { "data", saveFullTensor ? flat_data : std::vector<float>(flat_data.begin(), flat_data.begin() + min(10, flat_data.size())) },
+                        { "hash", hash },
                         { "min", *minmax.first },
                         { "max", *minmax.second }
                     };
+
+                    // Fill per iteration result (Summary.csv)
+                    output.SaveResult(iterationNum, ss.str(), hash);
                 }
                 else
                 {
@@ -1086,13 +1092,16 @@ namespace BindingUtilities
             }
         }
 
-        // Write JSON file
-        output.SetDefaultCSVIterationResult(iterationNum, args, OutputHelper::ToWString(TypeHelper::Stringify(device.DeviceType)), L"");
-        std::wstring jsonFilePath = output.GetCsvFileNamePerIterationResult();
-        jsonFilePath = jsonFilePath.substr(0, jsonFilePath.length() - 4) + L".json";
+        if (args.IsSaveTensor())
+        {
+            // Write JSON file
+            output.SetDefaultCSVIterationResult(iterationNum, args, OutputHelper::ToWString(TypeHelper::Stringify(device.DeviceType)), L"");
+            std::wstring jsonFilePath = output.GetCsvFileNamePerIterationResult();
+            jsonFilePath = jsonFilePath.substr(0, jsonFilePath.length() - 4) + L".json";
 
-        std::ofstream fout(jsonFilePath);
-        fout << std::setw(1) << output_json << std::endl;
+            std::ofstream fout(jsonFilePath);
+            fout << std::setw(1) << output_json << std::endl;
+        }
     }
 
     void PrintOrSaveEvaluationResultsToCsv(const LearningModel& model, const LearningModelDeviceWithMetadata& device, const CommandLineArgs& args,
@@ -1104,10 +1113,12 @@ namespace BindingUtilities
             if (desc.Kind() == LearningModelFeatureKind::Tensor)
             {
                 std::wstring name(desc.Name());
-                if (args.IsSaveTensor() && args.SaveTensorMode() == L"First" && iterationNum > 0)
-                {
-                    return;
-                }
+                // TODO: saveFullTensor handling?
+                bool saveFullTensor = args.SaveTensorMode() == L"All" || iterationNum == 0;
+//                if (args.IsSaveTensor() && args.SaveTensorMode() == L"First" && iterationNum > 0)
+//                {
+//                    return;
+//                }
                 if (args.IsSaveTensor())
                 {
                     output.SetDefaultCSVIterationResult(iterationNum, args, OutputHelper::ToWString(TypeHelper::Stringify(device.DeviceType)), name);
@@ -1169,18 +1180,19 @@ namespace BindingUtilities
                 if (args.IsSaveTensor())
                 {
                     fout.close();
+                    // Save Top1
                     for (auto& pair : maxKValues)
                     {
                         auto maxValue = pair.first;
                         auto maxIndex = pair.second;
-                        std::string iterationResult =
-                            "Index: " + std::to_string(maxIndex) + "; Value: " + std::to_string(maxValue);
-                        output.SaveResult(iterationNum, iterationResult,
-                                          static_cast<int>(hash_data(tensor, uCapacity)));
+                        std::string iterationResult = "Index: " + std::to_string(maxIndex) + "; Value: " + std::to_string(maxValue);
+                        output.SaveResult(iterationNum, iterationResult, hash_data(tensor, uCapacity));
+                        break;
                     }
                 }
                 if (!args.IsGarbageInput() && iterationNum == 0)
                 {
+                    // Print TopK
                     std::wcout << L"Outputting top " << args.TopK() << L" values" << std::endl;
                     std::wcout << L"Feature Name: " << name << std::endl;
                     for (auto& pair : maxKValues)
