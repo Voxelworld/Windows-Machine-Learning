@@ -1061,12 +1061,9 @@ namespace BindingUtilities
                                   << ", shape=" << OutputHelper::ToString(shape) << ")" << std::endl;
                     }
                     auto hash = hash_data(tensorBuffer, uCapacity);
-                    std::ostringstream ss;
-                    ss << " mix=" << (*minmax.first) << " max=" << (*minmax.second)
-                       << (isConstTensor ? " (Const-Tensor)" : "");
                               
-                    // TODO: saveFullTensor handling?
-                    bool saveFullTensor = args.SaveTensorMode() == L"All" || iterationNum == 0;
+                    // TODO: SaveTensorMode "Statistics" only saves the first elements?
+                    bool saveFullTensor = args.SaveTensorMode() == L"All" || (args.SaveTensorMode() == L"First" && iterationNum == 0);
                     output_json["outputs"][winrt::to_string(tensorDescriptor.Name())] =
                     {
                         { "description", winrt::to_string(tensorDescriptor.Description()) },
@@ -1079,6 +1076,9 @@ namespace BindingUtilities
                     };
 
                     // Fill per iteration result (Summary.csv)
+                    std::ostringstream ss;
+                    ss << " mix=" << (*minmax.first) << " max=" << (*minmax.second)
+                       << (isConstTensor ? " (Const-Tensor)" : "");
                     output.SaveResult(iterationNum, ss.str(), hash);
                 }
                 else
@@ -1112,13 +1112,9 @@ namespace BindingUtilities
         {
             if (desc.Kind() == LearningModelFeatureKind::Tensor)
             {
+                // TODO: SaveTensorMode "Statistics" only saves the first elements?
+                bool saveFullTensor = args.SaveTensorMode() == L"All" || (args.SaveTensorMode() == L"First" && iterationNum == 0);
                 std::wstring name(desc.Name());
-                // TODO: saveFullTensor handling?
-                bool saveFullTensor = args.SaveTensorMode() == L"All" || iterationNum == 0;
-//                if (args.IsSaveTensor() && args.SaveTensorMode() == L"First" && iterationNum > 0)
-//                {
-//                    return;
-//                }
                 if (args.IsSaveTensor())
                 {
                     output.SetDefaultCSVIterationResult(iterationNum, args, OutputHelper::ToWString(TypeHelper::Stringify(device.DeviceType)), name);
@@ -1153,12 +1149,12 @@ namespace BindingUtilities
                     break;
                     case TensorKind::Float16:
                     {
-                        output.ProcessTensorResult<HALF>(args, tensor, uCapacity, maxKValues, fout, topK);
+                        output.ProcessTensorResult<HALF>(args, tensor, uCapacity, maxKValues, fout, topK, saveFullTensor);
                     }
                     break;
                     case TensorKind::Float:
                     {
-                        output.ProcessTensorResult<float>(args, tensor, uCapacity, maxKValues, fout, topK);
+                        output.ProcessTensorResult<float>(args, tensor, uCapacity, maxKValues, fout, topK, saveFullTensor);
                     }
                     break;
                     case TensorKind::Int64:

@@ -603,9 +603,9 @@ void OutputHelper::SetDefaultCSVFileNamePerIteration()
     m_csvFileNamePerIterationSummary = m_folderNamePerIteration + L"\\Summary.csv";
 }
 
-std::wstring OutputHelper::GetDefaultCSVFileNamePerIteration() { return m_csvFileNamePerIterationSummary; }
+std::wstring OutputHelper::GetDefaultCSVFileNamePerIteration() const { return m_csvFileNamePerIterationSummary; }
 
-std::wstring OutputHelper::GetCsvFileNamePerIterationResult() { return m_csvFileNamePerIterationResult; }
+std::wstring OutputHelper::GetCsvFileNamePerIterationResult() const { return m_csvFileNamePerIterationResult; }
 
 void OutputHelper::SetDefaultCSVIterationResult(uint32_t iterationNum, const CommandLineArgs& args,
                                                 const std::wstring& deviceName, const std::wstring& featureName)
@@ -700,16 +700,16 @@ void OutputHelper::WritePerIterationPerformance(const CommandLineArgs& args, con
                      << m_GPUSharedStart[i] << "," << m_GPUDedicatedDiff[i] << "," << m_clockLoadTimes[i] << ","
                      << m_clockBindTimes[i] << "," << m_clockEvalTimes[i] << ",";
                 fout << m_outputResult[i] << "," << m_outputTensorHash[i] << ","
-                     << fileNameResultDevice + std::to_string(i + 1) + ".csv";
-                fout << std::endl;
+                     << fileNameResultDevice + std::to_string(i + 1) + (args.IsCSVInput() ? ".csv" : ".json") << std::endl;
             }
         }
         else
         {
             for (uint32_t i = 0; i < args.NumIterations(); i++)
             {
-                fout << i + 1 << "," << m_outputResult[i] << "," << m_outputTensorHash[i] << ","
-                     << fileNameResultDevice + std::to_string(i + 1) + ".csv" << std::endl; // vs. .json
+                fout << i + 1 << "," 
+                     << m_outputResult[i] << "," << m_outputTensorHash[i] << ","
+                     << fileNameResultDevice + std::to_string(i + 1) + (args.IsCSVInput() ? ".csv" : ".json") << std::endl;
             }
         }
         fout.close();
@@ -718,7 +718,8 @@ void OutputHelper::WritePerIterationPerformance(const CommandLineArgs& args, con
 
 template <typename T>
 void OutputHelper::ProcessTensorResult(const CommandLineArgs& args, const void* buffer, const uint32_t uCapacity,
-                         std::vector<std::pair<float, int>>& maxValues, std::ofstream& fout, unsigned int k)
+                                       std::vector<std::pair<float, int>>& maxValues, std::ofstream& fout,
+                                       unsigned int k, bool saveFullTensor)
 {
     // Create a priority queue of size k that pops the lowest value first
     // We will remove lowest values as we iterate over all the values
@@ -738,7 +739,7 @@ void OutputHelper::ProcessTensorResult(const CommandLineArgs& args, const void* 
         {
             val = XMConvertHalfToFloat(static_cast<HALF>(*(tensor + i)));
         }
-        if (args.IsSaveTensor())
+        if (args.IsSaveTensor() && (saveFullTensor || i < 10))
         {
             fout << i << "," << val << std::endl;
         }
@@ -768,11 +769,11 @@ void OutputHelper::ProcessTensorResult(const CommandLineArgs& args, const void* 
 }
 template void OutputHelper::ProcessTensorResult<float>(const CommandLineArgs& args, const void* buffer, const uint32_t uCapacity,
                                                        std::vector<std::pair<float, int>>& maxValues, std::ofstream& fout,
-                                                       unsigned int k);
+                                                       unsigned int k, bool saveFullTensor);
 template void OutputHelper::ProcessTensorResult<HALF>(const CommandLineArgs& args, const void* buffer,
-                                                       const uint32_t uCapacity,
-                                                       std::vector<std::pair<float, int>>& maxValues,
-                                                       std::ofstream& fout, unsigned int k);
+                                                      const uint32_t uCapacity,
+                                                      std::vector<std::pair<float, int>>& maxValues, std::ofstream& fout, 
+                                                      unsigned int k, bool saveFullTensor);
 
 void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PERF>& profiler, int numIterations,
                             const std::wstring& modelPath, const std::string& deviceType, const std::string& inputBinding,
@@ -1035,7 +1036,8 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
                  << "evaluate average shared memory (MB)" << ","
                  << "evaluate standard deviation shared memory (MB)" << ","
                  << "evaluate min shared memory (MB)" << ","
-                 << "evaluate max shared memory (MB)";
+                 << "evaluate max shared memory (MB)" << ","
+                 << "iteration summary path";
             for (auto metaDataPair : perfFileMetadata)
             {
                 fout << "," << metaDataPair.first;
@@ -1125,7 +1127,8 @@ void OutputHelper::WritePerformanceDataToCSV(const Profiler<WINML_MODEL_TEST_PER
              << (numIterations <= 1 ? NAN : averageEvalSharedMemoryUsage) << ","
              << (numIterations <= 1 ? NAN : stdevEvalSharedMemoryUsage) << ","
              << (numIterations <= 1 ? NAN : minEvalSharedMemoryUsage) << ","
-             << (numIterations <= 1 ? NAN : maxEvalSharedMemoryUsage);
+             << (numIterations <= 1 ? NAN : maxEvalSharedMemoryUsage) << ","
+             << converter.to_bytes(m_csvFileNamePerIterationSummary);
         for (auto metaDataPair : perfFileMetadata)
         {
             fout << "," << metaDataPair.second;

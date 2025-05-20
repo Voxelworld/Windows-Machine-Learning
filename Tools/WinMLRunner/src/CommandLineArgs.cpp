@@ -71,7 +71,7 @@ void CommandLineArgs::PrintUsage()
                  "tensor output results.  If not specified a default(timestamped) folder will be created."
               << std::endl;
     std::cout << "  -SaveTensorData <saveMode>: saveMode: save first iteration or all iteration output "
-                 "tensor results to csv file [First, All]"
+                 "tensor results to csv file [First, All, Statistics]"
               << std::endl;
     std::cout << "  -DebugEvaluate: Print evaluation debug output to debug console if debugger is present."
               << std::endl;
@@ -389,6 +389,10 @@ CommandLineArgs::CommandLineArgs(const std::vector<std::wstring>& args)
             else if (_wcsicmp(args[i].c_str(), L"All") == 0)
             {
                 m_saveTensorMode = L"All";
+            }
+            else if (_wcsicmp(args[i].c_str(), L"Statistics") == 0)
+            {
+                m_saveTensorMode = L"Statistics";
             }
             else
             {

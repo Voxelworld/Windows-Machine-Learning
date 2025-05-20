@@ -41,8 +41,8 @@ public:
     void SaveResult(uint32_t iterationNum, std::string result, size_t hashcode);
     void SetDefaultPerIterationFolder(const std::wstring& folderName);
     void SetDefaultCSVFileNamePerIteration();
-    std::wstring GetDefaultCSVFileNamePerIteration();
-    std::wstring GetCsvFileNamePerIterationResult();
+    std::wstring GetDefaultCSVFileNamePerIteration() const;
+    std::wstring GetCsvFileNamePerIterationResult() const;
     void SetDefaultCSVIterationResult(uint32_t iterationNum, const CommandLineArgs& args, const std::wstring& deviceName, const std::wstring& featureName);
     void SetCSVFileName(const std::wstring& fileName);
     void WritePerIterationPerformance(const CommandLineArgs& args, const std::wstring model,
@@ -59,7 +59,8 @@ public:
     static bool doesModelContainFP16(const LearningModel& model);
     template <typename T>
     static void ProcessTensorResult(const CommandLineArgs& args, const void* buffer, const uint32_t uCapacity,
-                                    std::vector<std::pair<float, int>>& maxValues, std::ofstream& fout, unsigned int k);
+                                    std::vector<std::pair<float, int>>& maxValues, std::ofstream& fout, unsigned int k,
+                                    bool saveFullTensor);
     static std::string ToString(std::wstring s);
     static std::wstring ToWString(std::string s);
     static std::string ToString(const std::vector<int64_t>& shape);
